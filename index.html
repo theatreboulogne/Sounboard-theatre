@@ -364,7 +364,7 @@ async function loadAllSounds(){
         type: sound.type.startsWith("video")
             ? "video"
             : "audio",
-        url: url
+        url
     };
 });
 
@@ -514,7 +514,10 @@ function play(index,button){
     button.classList.add("playing");
 
     audio.onended=stopCurrent;
-    audio.play();
+audio.play()
+.catch(err => {
+    console.error(err);
+});
 }
 
 function createButton(index){
@@ -527,8 +530,13 @@ function createButton(index){
 
     button.className="sound-btn";
 
-    button.onclick=() =>
-        play(index,button);
+    button.addEventListener(
+    "pointerup",
+    (e) => {
+        e.preventDefault();
+        play(index, button);
+    }
+);
 
     let timer;
 

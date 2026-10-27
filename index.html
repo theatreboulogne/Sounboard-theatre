@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#B57EDC">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>🎵 Soundboard Théâtre Souffler n'est pas jouer</title>
+
+
+
+
+<style>
+
+body{
+    margin:20px;
+    background:#1e1e1e;
+    color:white;
+    font-family:Arial,sans-serif;
+    text-align:center;
+}
+
+h1{
+    margin-bottom:15px;
+}
+
+.logo-wrapper{
+    position:relative;
+    width:300px;
+    margin:0 auto 20px auto;
+}
+
+.logo{
+    display:block;
+    width:120px;
+    margin:auto;
+    padding:20px;
+    background:white;
+    border-radius:50%;
+    border:4px solid #B57EDC;
+    outline:3px solid white;
+    outline-offset:3px;
+}
+
+.new-sound-btn{
+    position:absolute;
+    left:-200px;
+    top:50%;
+    transform:translateY(-50%);
+    background:#B57EDC;
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:12px 20px;
+    cursor:pointer;
+    font-size:16px;
+}
+
+.new-sound-btn:hover{
+    background:#800080;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:15px;
+    width:min(700px,100%);
+    margin:auto;
+}
+
+.sound-container{
+    display:flex;
+    flex-direction:column;
+}
+
+.sound-btn{
+    position:relative;
+    width:100%;
+    height:100px;
+    border:none;
+    border-radius:10px;
+    background:#B57EDC;
+    color:white;
+    font-size:22px;
+    cursor:pointer;
+    overflow:hidden;
+}
+
+.sound-btn:hover{
+    background:#800080;
+}
+
+.sound-btn.playing{
+    background:#18b84a;
+}
+
+.sound-btn.playing::before{
+    content:"STOP";
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:28px;
+    background:#d00000;
+    color:white;
+    font-weight:bold;
+    line-height:28px;
+    opacity:0;
+    transition:.2s;
+    z-index:10;
+}
+
+.sound-btn.playing:hover::before{
+    opacity:1;
+}
+
+#resetAllBtn{
+
+    position:absolute;
+    left:420px;
+    top:50%;
+    transform:translateY(-50%);
+    
+    border:none;
+    
+    font-size:16px;
+
+    background:#d00000;
+
+    color:white;
+
+    border:none;
+
+    border-radius:8px;
+
+    padding:12px 20px;
+
+    cursor:pointer;
+}
+
+#resetAllBtn:hover{
+    background:#800080;
+}
+
+.sound-btn video{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    background:black;
+}
+
+.file-label{
+    font-size:12px;
+    color:#ccc;
+    margin-top:5px;
+    word-break:break-word;
+}
+
+.menu-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.7);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:999;
+}
+
+.menu-box{
+    background:white;
+    color:black;
+    border-radius:10px;
+    width:280px;
+    overflow:hidden;
+}
+
+.menu-box button{
+    width:100%;
+    border:none;
+    padding:15px;
+    background:white;
+    cursor:pointer;
+    text-align:left;
+}
+
+.menu-box button:hover{
+    background:#f0f0f0;
+}
+
+@media(max-width:768px){
+
+    body{
+        margin:10px;
+    }
+
+    .grid{
+        width:100%;
+        grid-template-columns:1fr;
+    }
+
+    .logo-wrapper{
+        width:100%;
+    }
+
+    .new-sound-btn{
+        position:static;
+        transform:none;
+        margin:0 auto 15px auto;
+        display:block;
+        width:220px;
+    }
+
+    .logo{
+        width:90px;
+        padding:12px;
+    }
+
+    .sound-btn{
+        height:80px;
+        font-size:18px;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>🎵 Soundboard Théâtre</h1>
+
+<div class="logo-wrapper">
+
+    <button id="newSoundBtn" class="new-sound-btn">
+        ➕ Nouveau Son
+    </button>
+<button id="resetAllBtn">
+    🗑 Reset
+</button>
+    <img
+        src="logo theatre boulogne.jpg"
+        class="logo"
+        alt="Logo">
+</div>
+
+<input
+    type="file"
+    id="filePicker"
+    accept=".mp3,.wav,.ogg,.m4a,.mp4"
+    hidden>
+
+<div class="grid" id="grid"></div>
+
+<div id="menuOverlay" class="menu-overlay">
+    <div class="menu-box">
+        <button id="chooseBtn">🎵 Choisir un média</button>
+        <button id="renameBtn">✏️ Renommer</button>
+        <button id="resetBtn">🗑 Réinitialiser</button>
+        <button onclick="closeMenu()">Fermer</button>
+    </div>
+</div>
+
+<script>
+
+let db;
+
+async function openDatabase() {
+
+    return new Promise((resolve, reject) => {
+
+        const request = indexedDB.open(
+            "SoundboardDB",
+            1
+        );
+
+        request.onupgradeneeded = event => {
+
+            db = event.target.result;
+
+            if (!db.objectStoreNames.contains("sounds")) {
+
+                db.createObjectStore(
+                    "sounds",
+                    { keyPath: "id" }
+                );
+            }
+        };
+
+        request.onsuccess = event => {
+
+            db = event.target.result;
+            resolve(db);
+        };
+
+        request.onerror = () => reject();
+    });
+}
+
+async function saveSound(index,file,label){
+
+    const tx =
+        db.transaction(
+            ["sounds"],
+            "readwrite"
+        );
+
+    const store =
+        tx.objectStore("sounds");
+
+    store.put({
+        id:index,
+        label,
+        fileName:file.name,
+        type:file.type,
+        blob:file
+    });
+}
+async function loadSound(index){
+
+    return new Promise(resolve=>{
+
+        const tx =
+            db.transaction(
+                ["sounds"],
+                "readonly"
+            );
+
+        const store =
+            tx.objectStore("sounds");
+
+        const req =
+            store.get(index);
+
+        req.onsuccess = () =>
+            resolve(req.result);
+    });
+}
+
+async function loadAllSounds(){
+
+    const tx =
+        db.transaction(
+            ["sounds"],
+            "readonly"
+        );
+
+    const store =
+        tx.objectStore("sounds");
+
+    const request =
+        store.getAll();
+
+    request.onsuccess = () => {
+
+        request.result.forEach(sound => {
+
+    const url = URL.createObjectURL(sound.blob);
+
+    sounds[sound.id] = {
+        label: sound.label,
+        fileName: sound.fileName,
+        type: sound.type.startsWith("video")
+            ? "video"
+            : "audio",
+        url: url
+    };
+});
+
+        rebuildButtons();
+    };
+}
+
+
+document
+.getElementById("resetAllBtn")
+.addEventListener("click",async ()=>{
+
+    if(!confirm(
+        "Supprimer tous les sons ?"
+    )){
+        return;
+    }
+
+    const tx =
+        db.transaction(
+            ["sounds"],
+            "readwrite"
+        );
+
+    tx.objectStore("sounds")
+      .clear();
+
+    stopCurrent();
+
+    sounds = {};
+
+    while(buttons.length > 1){
+
+        const btn =
+            buttons.pop();
+
+        btn.parentElement.remove();
+    }
+
+    updateButton(0);
+
+localStorage.removeItem("soundboardConfig");
+});
+
+
+const grid = document.getElementById("grid");
+
+let sounds =
+JSON.parse(localStorage.getItem("soundboardConfig") || "{}");
+
+const buttons=[];
+
+let currentAudio=null;
+let currentVideo=null;
+let currentButtonIndex=null;
+let currentButtonElement=null;
+
+let selectedIndex=null;
+
+function saveConfig(){
+    localStorage.setItem(
+        "soundboardConfig",
+        JSON.stringify(sounds)
+    );
+}
+
+function updateButton(index){
+
+    const btn=buttons[index];
+
+    if(!btn) return;
+
+    const sound=sounds[index];
+
+    btn.textContent =
+        sound?.label || `Son ${index}`;
+
+    btn.parentElement.querySelector(".file-label").textContent =
+        sound?.fileName || "Aucun fichier";
+}
+
+function stopCurrent(){
+
+    if(currentAudio){
+        currentAudio.pause();
+        currentAudio.currentTime=0;
+    }
+
+    if(currentVideo){
+        currentVideo.pause();
+        currentVideo.remove();
+    }
+
+    currentButtonElement?.classList.remove("playing");
+
+    const old=currentButtonIndex;
+
+    currentAudio=null;
+    currentVideo=null;
+    currentButtonIndex=null;
+    currentButtonElement=null;
+
+    if(old!==null){
+        updateButton(old);
+    }
+}
+
+function play(index,button){
+
+    const sound=sounds[index];
+
+    if(!sound) return;
+
+    if(currentButtonIndex===index){
+        stopCurrent();
+        return;
+    }
+
+    stopCurrent();
+
+    if(sound.type==="video"){
+
+        const video=document.createElement("video");
+
+        video.src=sound.url;
+        video.controls=true;
+        video.autoplay=true;
+
+        button.textContent="";
+        button.appendChild(video);
+
+        button.classList.add("playing");
+
+        currentVideo=video;
+        currentButtonIndex=index;
+        currentButtonElement=button;
+
+        return;
+    }
+
+    const audio=new Audio(sound.url);
+
+    currentAudio=audio;
+    currentButtonIndex=index;
+    currentButtonElement=button;
+
+    button.classList.add("playing");
+
+    audio.onended=stopCurrent;
+    audio.play();
+}
+
+function createButton(index){
+
+    const container=document.createElement("div");
+
+    container.className="sound-container";
+
+    const button=document.createElement("button");
+
+    button.className="sound-btn";
+
+    button.onclick=() =>
+        play(index,button);
+
+    let timer;
+
+    button.addEventListener("touchstart",()=>{
+
+        timer=setTimeout(()=>{
+
+            selectedIndex=index;
+            showMenu();
+
+        },700);
+
+    });
+
+    button.addEventListener(
+        "touchend",
+        ()=>clearTimeout(timer)
+    );
+
+    button.addEventListener(
+        "contextmenu",
+        e=>{
+            e.preventDefault();
+            selectedIndex=index;
+            showMenu();
+        }
+    );
+
+    const label=document.createElement("div");
+
+    label.className="file-label";
+
+    container.append(button,label);
+
+    grid.appendChild(container);
+
+    buttons[index]=button;
+
+    updateButton(index);
+}
+
+function ensureButtonExists(index){
+
+    while(buttons.length<=index){
+        createButton(buttons.length);
+    }
+}
+
+function rebuildButtons()
+{
+    console.log("Reconstruction des boutons");
+
+    grid.innerHTML = "";
+    buttons.length = 0;
+
+    const keys = Object.keys(sounds).map(Number);
+
+    const count = Math.max(
+        1,
+        keys.length
+            ? Math.max(...keys) + 1
+            : 0
+    );
+
+    for (let i = 0; i < count; i++) {
+        createButton(i);
+    }
+}
+function showMenu(){
+    document.getElementById("menuOverlay").style.display="flex";
+}
+
+function closeMenu(){
+    document.getElementById("menuOverlay").style.display="none";
+}
+
+document.getElementById("newSoundBtn")
+.addEventListener("click",()=>{
+    ensureButtonExists(buttons.length);
+});
+
+document
+.getElementById("chooseBtn")
+.onclick=()=>{
+
+    closeMenu();
+
+    const picker =
+        document.getElementById("filePicker");
+
+    picker.value="";
+
+    picker.onchange=e=>{
+
+        const file =
+            e.target.files[0];
+
+        if(!file) return;
+
+        sounds[selectedIndex]={
+    fileName:file.name,
+    label:file.name,
+    type:file.type.startsWith("video/")
+        ? "video"
+        : "audio",
+    url:URL.createObjectURL(file)
+};
+
+saveSound(
+    selectedIndex,
+    file,
+    file.name
+);
+
+updateButton(selectedIndex);
+saveConfig();
+    };
+
+    picker.click();
+};
+
+document
+.getElementById("renameBtn")
+.onclick=()=>{
+
+    closeMenu();
+
+    const label=prompt(
+        "Nouveau libellé",
+        sounds[selectedIndex]?.label || ""
+    );
+
+    if(!label) return;
+
+    sounds[selectedIndex] ??= {};
+
+    sounds[selectedIndex].label = label;
+
+loadSound(selectedIndex)
+.then(sound => {
+    if(sound){
+        saveSound(
+            selectedIndex,
+            sound.blob,
+            label
+        );
+    }
+});
+
+updateButton(selectedIndex);
+saveConfig();
+};
+
+document
+.getElementById("resetBtn")
+.onclick=()=>{
+
+    closeMenu();
+
+    const tx =
+    db.transaction(
+        ["sounds"],
+        "readwrite"
+    );
+
+tx.objectStore("sounds")
+  .delete(selectedIndex);
+
+delete sounds[selectedIndex];
+
+updateButton(selectedIndex);
+saveConfig();
+};
+
+async function init() {
+
+    await openDatabase();
+
+    await loadAllSounds();
+}
+
+init();
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+        .register('./service-worker.js')
+        .then(() => console.log('Service Worker enregistré'))
+        .catch(err => console.error(err));
+}
+</script>
+
+</body>
+</html>

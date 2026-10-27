@@ -18,5 +18,10 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+{
+      "src": "icons/Favicon.ico",
+      "type": "image/ico"
+    }
+
   ]
 }

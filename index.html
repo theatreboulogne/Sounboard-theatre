@@ -8,9 +8,10 @@
 
 <title>🎵 Soundboard Théâtre Souffler n'est pas jouer</title>
 
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 
-
-
+<link rel="manifest" href="manifest.json">
 <style>
 
 body{
@@ -540,16 +541,32 @@ function createButton(index){
 
     let timer;
 
-    button.addEventListener("touchstart",()=>{
+    let longPress = false;
 
-        timer=setTimeout(()=>{
+button.addEventListener("touchstart", () => {
 
-            selectedIndex=index;
-            showMenu();
+    longPress = false;
 
-        },700);
+    timer = setTimeout(() => {
+        longPress = true;
+        selectedIndex = index;
+        showMenu();
+    }, 700);
 
-    });
+});
+
+button.addEventListener("touchend", () => {
+    clearTimeout(timer);
+});
+
+button.addEventListener("pointerup", (e) => {
+
+    e.preventDefault();
+
+    if(longPress) return;
+
+    play(index, button);
+});
 
     button.addEventListener(
         "touchend",
@@ -705,6 +722,7 @@ document
 tx.objectStore("sounds")
   .delete(selectedIndex);
 
+URL.revokeObjectURL(sound.url);
 delete sounds[selectedIndex];
 
 updateButton(selectedIndex);
